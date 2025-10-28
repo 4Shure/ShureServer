@@ -1,6 +1,10 @@
 package utils
 
-import "time"
+import (
+	"reflect"
+	"strings"
+	"time"
+)
 
 func FormatEpoch(millis int64) string {
 	return time.UnixMilli(millis).
@@ -12,4 +16,35 @@ func NowUTC() int64 {
 	return time.Now().
 		UTC().
 		UnixMilli()
+}
+
+func Sanitize(o any) {
+	v := reflect.ValueOf(o)
+	if v.Kind() != reflect.Ptr || v.IsNil() {
+		panic("sanitize: expected pointer to struct")
+	}
+
+	v = v.Elem()
+	if v.Kind() != reflect.Struct {
+		panic("sanitize: expected struct")
+	}
+
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		switch field.Kind() {
+		case reflect.String:
+			field.SetString(sanitizeString(field.String()))
+
+		case reflect.Slice:
+			if field.Type().Elem().Kind() == reflect.String {
+				for j := 0; j < field.Len(); j++ {
+					field.Index(j).SetString(sanitizeString(field.Index(j).String()))
+				}
+			}
+		}
+	}
+}
+
+func sanitizeString(s string) string {
+	return strings.TrimSpace(s)
 }
