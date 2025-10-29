@@ -3,15 +3,13 @@ package sqlite
 import (
 	"4shure/cmd/internal/domain/entity"
 	"gorm.io/driver/sqlite"
-	"path/filepath"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 func Init() (*gorm.DB, error) {
-	dbPath := filepath.Join("/data", "database.db")
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("./database.db"), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}

@@ -18,6 +18,23 @@ func NowUTC() int64 {
 		UnixMilli()
 }
 
+func FromEpoch(rfc string) (int64, error) {
+	t, err := time.Parse(time.RFC3339, rfc)
+	if err != nil {
+		return 0, err
+	}
+	return t.UnixMilli(), nil
+}
+
+// IsHourExact checks if the given epoch milliseconds represents
+// an exact hour (e.g., 14:00:00.000).
+func IsHourExact(millis int64) bool {
+	// An exact hour is perfectly divisible by the number
+	// of milliseconds in one hour.
+	const millisInHour = 3600000
+	return millis%millisInHour == 0
+}
+
 func Sanitize(o any) {
 	v := reflect.ValueOf(o)
 	if v.Kind() != reflect.Ptr || v.IsNil() {

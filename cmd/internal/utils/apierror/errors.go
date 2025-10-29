@@ -45,12 +45,8 @@ var (
 	MalformedBodyError  = NewSimple(400, "Malformed form body")
 	InternalServerError = NewSimple(500, "Internal server error")
 
-	NotFoundError         = NewSimple(404, "Resource not found")
-	FormJSONRequiredError = NewSimple(400, "Form field `json_payload` is required")
-	InvalidIDError        = NewSimple(400, "The provided ID is invalid, IDs are usually int32 > 0")
-	MissingNoteFileError  = NewSimple(400, "Content file is required")
-	UserNotAdmin          = NewSimple(403, "Admin privileges are required for this operation")
-	MissingFileNameError  = NewSimple(400, "File name is required")
+	NotFoundError     = NewSimple(404, "Resource not found")
+	HourNotExactError = NewSimple(406, "Appointment times must be exact. OK: (14:00:00), NOT OK: (14:00:01)")
 
 	/*
 	 * Used for authentications
@@ -102,6 +98,8 @@ func FromValidationError(err error) *StructuredError {
 			problems[field] = append(problems[field], "Value must be a valid email address")
 		case "oneof":
 			problems[field] = append(problems[field], "Value must be one of the following: "+fe.Param())
+		case "iso8601":
+			problems[field] = append(problems[field], "Value must be a valid ISO8601 date/time format")
 
 		default:
 			problems[field] = append(problems[field], "Invalid value provided")

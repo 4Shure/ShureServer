@@ -5,6 +5,7 @@ import (
 	"github.com/labstack/gommon/log"
 	"reflect"
 	"regexp"
+	"time"
 	"unicode"
 )
 
@@ -72,6 +73,12 @@ func NoWhiteSpaces(fl validator.FieldLevel) bool {
 
 	str := field.String()
 	return !hasSpaces.MatchString(str)
+}
+
+func IsIso8601(fl validator.FieldLevel) bool {
+	str := fl.Field().String()
+	_, err := time.Parse(time.RFC3339, str)
+	return err == nil
 }
 
 func NoDupes(fl validator.FieldLevel) bool {
