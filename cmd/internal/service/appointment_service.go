@@ -19,7 +19,7 @@ type AppointmentRepository interface {
 }
 
 type AppointmentRequest struct {
-	Title    *string `json:"title" validate:"max:128"`
+	Title    *string `json:"title" validate:"max=128"`
 	BeginsAt string  `json:"begins_at" validate:"required,iso8601"`
 }
 
