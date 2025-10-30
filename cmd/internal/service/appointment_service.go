@@ -12,6 +12,7 @@ import (
 type AppointmentRepository interface {
 	Save(appointment *entity.Appointment) error
 	FindAll() ([]*entity.Appointment, error)
+	IsAvailable(begin, end int64) (bool, error)
 	FindByUserID(id int) ([]*entity.Appointment, error)
 	FindByID(id int) (*entity.Appointment, error)
 	FindMonthAppointments(monthStart, monthEnd int64) ([]*entity.Appointment, error)
@@ -19,19 +20,19 @@ type AppointmentRepository interface {
 }
 
 type AppointmentRequest struct {
-	Title    *string `json:"title" validate:"max=128"`
-	BeginsAt string  `json:"begins_at" validate:"required,iso8601"`
+	Title    string `json:"title" validate:"max=128"`
+	BeginsAt string `json:"begins_at" validate:"required,iso8601"`
 }
 
 type AppointmentResponse struct {
-	ID        int     `json:"id"`
-	BeginsAt  string  `json:"begins_at"`
-	EndsAt    string  `json:"ends_at"`
-	UserID    int     `json:"user_id"`
-	IsDeleted bool    `json:"is_deleted"`
-	CreatedAt string  `json:"created_at"`
-	UpdatedAt string  `json:"updated_at"`
-	Title     *string `json:"title"`
+	ID        int    `json:"id"`
+	BeginsAt  string `json:"begins_at"`
+	EndsAt    string `json:"ends_at"`
+	UserID    int    `json:"user_id"`
+	IsDeleted bool   `json:"is_deleted"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+	Title     string `json:"title"`
 }
 
 type ScheduledDay struct {
@@ -100,10 +101,26 @@ func (a *DefaultAppointmentService) CreateAppointment(req *AppointmentRequest, s
 		return nil, apierror.HourNotExactError
 	}
 
+	if !isFuture(begin) {
+		return nil, apierror.AppointmentInPastError
+	}
+
+	end := begin + time.Hour.Milliseconds() - 1
 	now := utils.NowUTC()
+
+	available, err := a.AppointmentRepo.IsAvailable(begin, end)
+	if err != nil {
+		log.Errorf("failed to check if time %d is available: %v", begin, err)
+		return nil, apierror.InternalServerError
+	}
+
+	if !available {
+		return nil, apierror.MomentNotAvailable
+	}
+
 	appointment := &entity.Appointment{
 		BeginsAt:  begin,
-		EndsAt:    begin + time.Hour.Milliseconds() - 1,
+		EndsAt:    end,
 		UserID:    caller.ID,
 		IsDeleted: false,
 		CreatedAt: now,
@@ -160,6 +177,11 @@ func (a *DefaultAppointmentService) GetCalendar(monthStart, monthEnd int64) (*Ca
 		ScheduledDays: schedDays,
 	}
 	return calendar, nil
+}
+
+func isFuture(millis int64) bool {
+	now := utils.NowUTC()
+	return millis > now
 }
 
 func toScheduledDay(appt *entity.Appointment) *ScheduledDay {

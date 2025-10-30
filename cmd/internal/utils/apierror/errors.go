@@ -45,8 +45,10 @@ var (
 	MalformedBodyError  = NewSimple(400, "Malformed form body")
 	InternalServerError = NewSimple(500, "Internal server error")
 
-	NotFoundError     = NewSimple(404, "Resource not found")
-	HourNotExactError = NewSimple(406, "Appointment times must be exact. OK: (14:00:00), NOT OK: (14:00:01)")
+	NotFoundError          = NewSimple(404, "Resource not found")
+	AppointmentInPastError = NewSimple(400, "Appointments cannot have a begin date in the past")
+	MomentNotAvailable     = NewSimple(400, "This period in time is not available for new appointments")
+	HourNotExactError      = NewSimple(400, "Appointment times must be exact. OK: (14:00:00), NOT OK: (14:00:01)")
 
 	/*
 	 * Used for authentications
