@@ -6,10 +6,10 @@ import (
 	"4shure/cmd/internal/utils"
 	"4shure/cmd/internal/utils/apierror"
 	"errors"
+	"github.com/aws/smithy-go"
 	"github.com/go-playground/validator/v10"
 	"strconv"
 
-	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider/types"
 	"github.com/labstack/gommon/log"
 )
 
@@ -241,17 +241,21 @@ func handleUserSignup(cogClient cognitoclient.CognitoInterface, req *cognitoclie
 		return uuid, nil, revert
 	}
 
-	switch {
-	case errors.Is(err, &types.InvalidPasswordException{}):
-		return "", apierror.IDPInvalidPasswordError, revert
-
-	case errors.Is(err, &types.UsernameExistsException{}):
-		return "", apierror.IDPExistingEmailError, revert
-
-	default:
-		log.Errorf("failed to signup user: %v", err)
-		return "", apierror.InternalServerError, revert
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case "InvalidPasswordException":
+			return "", apierror.IDPInvalidPasswordError, revert
+		case "UsernameExistsException":
+			return "", apierror.IDPExistingEmailError, revert
+		default:
+			log.Errorf("signup failed for user (%s): %s - %s", req.Email, apiErr.ErrorCode(), apiErr.ErrorMessage())
+			return "", apierror.InternalServerError, revert
+		}
 	}
+
+	log.Errorf("failed to signup user (%s): %v", req.Email, err)
+	return "", apierror.InternalServerError, revert
 }
 
 func handleUserSignin(cogClient cognitoclient.CognitoInterface, req *cognitoclient.UserLogin) (*cognitoclient.AuthCreate, apierror.ErrorResponse) {
@@ -260,20 +264,23 @@ func handleUserSignin(cogClient cognitoclient.CognitoInterface, req *cognitoclie
 		return auth, nil
 	}
 
-	switch {
-	case errors.Is(err, &types.UserNotFoundException{}):
-		return nil, apierror.IDPUserNotFoundError
-
-	case errors.Is(err, &types.UserNotConfirmedException{}):
-		return nil, apierror.IDPUserNotConfirmedError
-
-	case errors.Is(err, &types.NotAuthorizedException{}):
-		return nil, apierror.IDPCredentialsMismatchError
-
-	default:
-		log.Errorf("failed to signin user (%s): %v", req.Email, err)
-		return nil, apierror.InternalServerError
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case "UserNotFoundException":
+			return nil, apierror.IDPUserNotFoundError
+		case "UserNotConfirmedException":
+			return nil, apierror.IDPUserNotConfirmedError
+		case "NotAuthorizedException":
+			return nil, apierror.IDPCredentialsMismatchError
+		default:
+			log.Errorf("signin failed for user (%s): %s - %s", req.Email, apiErr.ErrorCode(), apiErr.ErrorMessage())
+			return nil, apierror.InternalServerError
+		}
 	}
+
+	log.Errorf("failed to signin user (%s): %v", req.Email, err)
+	return nil, apierror.InternalServerError
 }
 
 func handleSignupConfirmation(cogClient cognitoclient.CognitoInterface, req *cognitoclient.UserConfirmation) apierror.ErrorResponse {
@@ -282,20 +289,23 @@ func handleSignupConfirmation(cogClient cognitoclient.CognitoInterface, req *cog
 		return nil
 	}
 
-	switch {
-	case errors.Is(err, &types.CodeMismatchException{}):
-		return apierror.IDPConfirmCodeMismatchError
-
-	case errors.Is(err, &types.ExpiredCodeException{}):
-		return apierror.IDPConfirmCodeExpiredError
-
-	case errors.Is(err, &types.UserNotFoundException{}):
-		return apierror.IDPUserNotFoundError
-
-	default:
-		log.Errorf("failed to confirm user (%s): %v", req.Email, err)
-		return apierror.InternalServerError
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case "CodeMismatchException":
+			return apierror.IDPConfirmCodeMismatchError
+		case "ExpiredCodeException":
+			return apierror.IDPConfirmCodeExpiredError
+		case "UserNotFoundException":
+			return apierror.IDPUserNotFoundError
+		default:
+			log.Errorf("confirmation failed for user (%s): %s - %s", req.Email, apiErr.ErrorCode(), apiErr.ErrorMessage())
+			return apierror.InternalServerError
+		}
 	}
+
+	log.Errorf("failed to confirm user (%s): %v", req.Email, err)
+	return apierror.InternalServerError
 }
 
 func toUserResponse(user *entity.User) *UserResponse {
